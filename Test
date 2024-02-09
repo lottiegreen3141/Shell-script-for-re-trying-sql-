@@ -1,0 +1,43 @@
+
+#!/bin/bash
+
+# Define the specific SQL file path
+sql_file="/path/to/your/specific_sql_file.sql"
+log_file="/path/to/your/sql_execution_log.txt"
+max_retries=1
+
+# Function to execute and log a single SQL statement
+execute_and_log_sql() {
+    local sql_statement="$1"
+    local retries=0
+
+    # Attempt to execute the SQL statement, retrying as necessary
+    until echo "$sql_statement" | bteq 2>&1 | tee -a "${log_file}"; do
+        ((retries++))
+        echo "Attempt $retries: SQL execution failed, retrying..." | tee -a "${log_file}"
+        if [ $retries -ge $max_retries ]; then
+            echo "Max retries reached for statement. Moving to next statement." | tee -a "${log_file}"
+            return 1
+        fi
+        sleep 1 # Optional: sleep before retrying
+    done
+    echo "SQL statement executed successfully." | tee -a "${log_file}"
+}
+
+# Read and execute each SQL statement from the file
+{
+    sql_statement=""
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip comments
+        [[ "$line" =~ ^-- ]] && continue
+        # Accumulate lines until a semicolon is found
+        sql_statement+="$line"
+        if [[ "$line" =~ ;[[:space:]]*$ ]]; then
+            # Execute the accumulated SQL statement
+            execute_and_log_sql "$sql_statement"
+            sql_statement="" # Reset for the next statement
+        else
+            sql_statement+=" " # Ensure spacing between lines for multi-line statements
+        fi
+    done
+} < "$sql_file"
