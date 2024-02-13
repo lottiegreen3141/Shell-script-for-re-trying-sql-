@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Define the specific SQL file path
@@ -24,6 +23,9 @@ execute_and_log_sql() {
     echo "SQL statement executed successfully." | tee -a "${log_file}"
 }
 
+# Define the regex pattern for lines ending with a semicolon (and possible trailing spaces)
+pattern=";[[:space:]]*$"
+
 # Read and execute each SQL statement from the file
 {
     sql_statement=""
@@ -32,7 +34,7 @@ execute_and_log_sql() {
         [[ "$line" =~ ^-- ]] && continue
         # Accumulate lines until a semicolon is found
         sql_statement+="$line"
-        if [[ "$line" =~ ;[[:space:]]*$ ]]; then
+        if [[ "$line" =~ $pattern ]]; then
             # Execute the accumulated SQL statement
             execute_and_log_sql "$sql_statement"
             sql_statement="" # Reset for the next statement
