@@ -9,18 +9,24 @@ max_retries=1
 execute_and_log_sql() {
     local sql_statement="$1"
     local retries=0
+    local output
 
     # Attempt to execute the SQL statement, retrying as necessary
-    until echo "$sql_statement" | bteq 2>&1 | tee -a "${log_file}"; do
-        ((retries++))
-        echo "Attempt $retries: SQL execution failed, retrying..." | tee -a "${log_file}"
-        if [ $retries -ge $max_retries ]; then
-            echo "Max retries reached for statement. Moving to next statement." | tee -a "${log_file}"
-            return 1
+    until output=$(echo "$sql_statement" | bteq 2>&1); do
+        echo "$output" | tee -a "${log_file}"
+        if [[ "$output" == *"Error"* ]]; then
+            ((retries++))
+            echo "Attempt $retries: SQL execution failed, retrying..." | tee -a "${log_file}"
+            if [ $retries -ge $max_retries ]; then
+                echo "Max retries reached for statement. Moving to next statement." | tee -a "${log_file}"
+                return 1
+            fi
+            sleep 1 # Optional: sleep before retrying
+        else
+            echo "SQL statement executed successfully." | tee -a "${log_file}"
+            return 0
         fi
-        sleep 1 # Optional: sleep before retrying
     done
-    echo "SQL statement executed successfully." | tee -a "${log_file}"
 }
 
 # Define the regex pattern for lines ending with a semicolon (and possible trailing spaces)
